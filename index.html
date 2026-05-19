@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Playlist JSON</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #333; border-bottom: 2px solid #ff6b6b; }
+        .toolbar { margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            background: #007bff; color: white; border: none;
+            padding: 8px 16px; border-radius: 6px; cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #a71d2a; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #1e7e34; }
+        button.warning { background: #ffc107; color: #333; }
+        button.warning:hover { background: #e0a800; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
+        th { background: #ff6b6b; color: white; }
+        input, select { width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+        .actions button { padding: 4px 8px; font-size: 12px; }
+        .export-area {
+            background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px;
+            font-family: monospace; white-space: pre-wrap; overflow-x: auto; margin-top: 20px;
+        }
+        .info { margin-top: 10px; font-size: 14px; color: #555; }
+        .id-input { width: 80px; min-width: 80px; }
+        .id-cell { width: 80px; }
+    </style>
+</head>
+<body>
+<h1>🎵 Editor de Playlist (JSON)</h1>
+<div class="info">Edite os campos, adicione, remova ou reordene. Exporte no formato JSON válido.</div>
+<div class="toolbar">
+    <button id="addBtn" class="success">➕ Adicionar música</button>
+    <button id="reorderIdBtn" class="warning">🔄 Renumerar IDs (538 em diante)</button>
+    <button id="exportBtn">📋 Copiar JSON</button>
+    <button id="downloadBtn">💾 Baixar JSON</button>
+    <button id="importBtn">📂 Importar JSON</button>
+</div>
+<table id="playlistTable">
+    <thead>
+        <tr>
+            <th class="id-cell">ID</th>
+            <th>Título</th>
+            <th>Arquivo (src)</th>
+            <th>Gênero</th>
+            <th>Tipo</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+</table>
+<div class="export-area" id="exportArea"></div>
+
+<script>
+    // Playlist inicial (exemplo) - agora em formato JSON puro (objetos comuns)
+    let playlist = [
+        { "id": 538, "title": "Thiago Martins - Onde Deus Possa Me Ouvir", "src": "Thiago_Martins_Onde_Deus_Possa_Me_Ouvir_Esperando_Avi_es_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 539, "title": "Leandro Sapucahy - Poxa / Disritmia", "src": "LEANDRO_SAPUCAHY_Poxa_Disritmia_Espelho_Que_Nem_Antigamente__muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 540, "title": "Felipe Araújo e Thiaguinho - Espaçosa Demais", "src": "Felipe_Ara_jo_Thiaguinho_Espa_osa_Demais_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 541, "title": "Bokaloka - Duas paixões / Procurando alguém / Bye Bye", "src": "Bokaloka_Duas_paix_es_Procurando_algu_m_Bye_Bye_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 542, "title": "Péricles - Me Apaixonei pela Pessoa Errada", "src": "Live_P_ricles_Me_Apaixonei_Pela_Pessoa_Errada_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 543, "title": "Desse Jeito - Desse Jeito / Ruim pra Mim", "src": "Desse_Jeito_Desse_Jeito_Ruim_pra_Mim_Ao_Vivo__muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 544, "title": "Ferrugem - Telepatia (part. Thiaguinho)", "src": "Ferrugem_Telepatia_part_Thiaguinho_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 545, "title": "Délcio Luiz - Meu casamento / Refém do coração / Luz do desejo", "src": "D_lcio_Luiz_Meu_casamento_Ref_m_do_cora_o_Luz_do_desejo_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 546, "title": "Até Que - Até Que Durou (Ao Vivo)", "src": "At_Que_At_Que_Durou_Ao_Vivo__muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 547, "title": "Ludmilla - Falta de Mim", "src": "LUDMILLA_Falta_de_Mim_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 548, "title": "Belo - Transas (Ao Vivo)", "src": "Belo_Transas_Ao_Vivo_DVD_Belo_In_Concert_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 549, "title": "Ivete Sangalo - Ah, Como Eu Te Amei / Retalhos de Cetim / Ivete Clareou", "src": "Ivete_Sangalo_Ah_Como_Eu_Te_Amei_Retalhos_de_Cetim_Ivete_Clareou_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 550, "title": "Mania - Mania de Você", "src": "Mania_de_Mania_de_Voc__muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 551, "title": "Xande de Pilares - Defunto / Caguete / Malandro Não Vacila", "src": "Xande_de_Pilares_Defunto_Caguete_Malandro_N_o_Vacila_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 552, "title": "Kiko - Nem de Graça / Falando Segredo / Brilho de Cristal", "src": "Kiko_Nem_de_Gra_a_Falando_Segredo_Brilho_de_Cristal_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 553, "title": "Marvvila e Ivete Sangalo - Você Não Vai Sofrer", "src": "Marvvila_Ivete_Sangalo_Voc_N_o_Vai_Sofrer_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 554, "title": "Rolezinho - Rolezinho (Grupo)", "src": "Rolezinho_Rolezinho_Grupo_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 555, "title": "PaGGodin - L o Santana / Girassol / Uma Brasileira / Sombra Da Maldade", "src": "PaGGodin_L_o_Santana_Girassol_Uma_Brasileira_Sombra_Da_Maldade_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 556, "title": "Leandro Sapucahy - Naquela Mesa", "src": "Leandro_Sapucahy_Naquela_Mesa_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 557, "title": "Sorriso Maroto - Meu Jeito de Ser / Que Se Chama Amor", "src": "Meu_Jeito_De_Ser_Que_Se_Chama_De_Amor_Sorriso_Maroto_muzzik.m4a", "genero": "SAMBA", "tipo": "normal" },
+        { "id": 558, "title": "Pra Não - Pra Não Pensar Em Você (Ao Vivo)", "src": "Pra_N_o_Pra_N_o_Pensar_Em_Voc_Ao_Vivo__muzzik.m4a", "genero": "SAMBA", "tipo": "normal" }
+    ];
+
+    const GENRES_LIST = [
+        "MODA DE VIOLA", "MODA TOP", "POP BR", "POP INTER", "BREGA", "FORRÓ", "FORRÓ ANTIGO",
+        "ARROCHA", "MOTEL HITS", "RAGGEAE", "SAMBA ANTIGO", "AS ++", "TOP 10", "NO CARRO",
+        "SUPER LIST", "POP", "CRISTÃ", "PRÁ DANÇAR", "ROMANTICA", "VARIADAS", "TOP PATICO",
+        "PATICO HITS", "SAMBA", "PAGODE", "SERTANEJO", "AXÉ", "MPB", "OUTRO"
+    ];
+
+    function reorderIds() { 
+        playlist.forEach((item, i) => item.id = 538 + i); 
+    }
+
+    // Gera JSON válido (com aspas duplas) e indentação de 2 espaços
+    function getJSONString() {
+        return JSON.stringify(playlist, null, 2);
+    }
+
+    function updateExport() {
+        document.getElementById('exportArea').innerText = getJSONString();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        
+        playlist.forEach((item, idx) => {
+            const row = tbody.insertRow();
+            
+            // ID cell
+            const idCell = row.insertCell(0);
+            idCell.className = 'id-cell';
+            const idInput = document.createElement('input');
+            idInput.type = 'number';
+            idInput.value = item.id;
+            idInput.className = 'id-input';
+            idInput.onchange = (e) => {
+                const newId = parseInt(e.target.value);
+                if (!isNaN(newId)) {
+                    const idExists = playlist.some((p, i) => i !== idx && p.id === newId);
+                    if (idExists) {
+                        alert('Este ID já existe! Por favor, use um ID único.');
+                        idInput.value = item.id;
+                    } else {
+                        item.id = newId;
+                        updateExport();
+                    }
+                } else {
+                    idInput.value = item.id;
+                }
+            };
+            idCell.appendChild(idInput);
+            
+            // Title
+            const titleCell = row.insertCell(1);
+            const titleInput = document.createElement('input');
+            titleInput.value = item.title;
+            titleInput.onchange = e => { item.title = e.target.value; updateExport(); };
+            titleCell.appendChild(titleInput);
+            
+            // Src
+            const srcCell = row.insertCell(2);
+            const srcInput = document.createElement('input');
+            srcInput.value = item.src;
+            srcInput.onchange = e => { item.src = e.target.value; updateExport(); };
+            srcCell.appendChild(srcInput);
+            
+            // Genre
+            const genCell = row.insertCell(3);
+            const genSelect = document.createElement('select');
+            GENRES_LIST.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                if (g === item.genero) opt.selected = true;
+                genSelect.appendChild(opt);
+            });
+            genSelect.onchange = e => { item.genero = e.target.value; updateExport(); };
+            genCell.appendChild(genSelect);
+            
+            // Tipo
+            const tipoCell = row.insertCell(4);
+            const tipoInput = document.createElement('input');
+            tipoInput.value = item.tipo;
+            tipoInput.onchange = e => { item.tipo = e.target.value; updateExport(); };
+            tipoCell.appendChild(tipoInput);
+            
+            // Actions
+            const actionCell = row.insertCell(5);
+            actionCell.className = 'actions';
+            
+            const upBtn = document.createElement('button'); 
+            upBtn.innerText = '↑';
+            upBtn.onclick = () => { 
+                if(idx > 0){ 
+                    [playlist[idx-1], playlist[idx]] = [playlist[idx], playlist[idx-1]]; 
+                    renderTable(); 
+                    updateExport(); 
+                } 
+            };
+            
+            const downBtn = document.createElement('button'); 
+            downBtn.innerText = '↓';
+            downBtn.onclick = () => { 
+                if(idx < playlist.length-1){ 
+                    [playlist[idx+1], playlist[idx]] = [playlist[idx], playlist[idx+1]]; 
+                    renderTable(); 
+                    updateExport(); 
+                } 
+            };
+            
+            const delBtn = document.createElement('button'); 
+            delBtn.innerText = '🗑️'; 
+            delBtn.className = 'danger';
+            delBtn.onclick = () => { 
+                playlist.splice(idx, 1); 
+                renderTable(); 
+                updateExport(); 
+            };
+            
+            actionCell.append(upBtn, downBtn, delBtn);
+        });
+        
+        updateExport();
+    }
+
+    // Adicionar música
+    document.getElementById('addBtn').onclick = () => {
+        let newId = playlist.length ? Math.max(...playlist.map(p => p.id)) + 1 : 538;
+        playlist.push({ id: newId, title: "Nova música", src: "novo_arquivo.m4a", genero: "POP", tipo: "normal" });
+        renderTable();
+    };
+    
+    // Renumerar IDs
+    document.getElementById('reorderIdBtn').onclick = () => {
+        if (confirm('Isso vai renumerar todos os IDs sequencialmente a partir de 538. Continuar?')) {
+            reorderIds();
+            renderTable();
+            alert('IDs renumerados com sucesso!');
+        }
+    };
+    
+    // Copiar JSON
+    document.getElementById('exportBtn').onclick = () => {
+        navigator.clipboard.writeText(getJSONString()).then(() => alert('JSON copiado para a área de transferência!'));
+    };
+    
+    // Baixar arquivo .json
+    document.getElementById('downloadBtn').onclick = () => {
+        const jsonStr = getJSONString();
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'playlist.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+    
+    // Importar JSON (validar e substituir)
+    document.getElementById('importBtn').onclick = () => {
+        const input = prompt('Cole o JSON completo do array:');
+        if (!input) return;
+        try {
+            const imported = JSON.parse(input);
+            if (Array.isArray(imported) && imported.every(item => item.id !== undefined && item.title !== undefined && item.src !== undefined && item.genero !== undefined && item.tipo !== undefined)) {
+                playlist = imported;
+                renderTable();
+                alert('Playlist importada com sucesso!');
+            } else {
+                alert('Formato inválido. O JSON deve ser um array de objetos contendo os campos: id, title, src, genero, tipo.');
+            }
+        } catch(e) {
+            alert('Erro ao analisar JSON: ' + e.message);
+        }
+    };
+    
+    renderTable();
+</script>
+</body>
+</html>
